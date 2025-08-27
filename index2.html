@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Excel Data Analyzer — Client-side</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+
+  <link href="https://unpkg.com/tabulator-tables@6.2.0/dist/css/tabulator_semanticui.min.css" rel="stylesheet">
+  <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
+
+  <style>
+    :root {
+      --primary-500: #4299e1;
+      --primary-600: #3182ce;
+      --background: #f7fafc;
+      --surface: #ffffff;
+      --text-main: #2d3748;
+      --text-sub: #718096;
+      --border-color: #e2e8f0;
+      --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--background);
+      color: var(--text-main);
+    }
+    .chart-wrap { height: 250px; }
+    .card {
+      background-color: var(--surface);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border-color);
+    }
+    .btn-primary {
+      background-color: var(--primary-500);
+      color: white;
+      transition: background-color 0.2s, transform 0.2s;
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-600);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: var(--surface);
+      color: var(--text-sub);
+      border: 1px solid var(--border-color);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      background-color: var(--border-color);
+    }
+    /* Tabulator specific styling to match the theme */
+    .tabulator {
+      border: none !important;
+      background-color: transparent !important;
+    }
+    .tabulator-header, .tabulator-col-content {
+      background-color: #e2e8f0 !important;
+      font-weight: 600;
+      border-bottom: 2px solid #cbd5e0 !important;
+      padding: 0.75rem 0.5rem;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+    .tabulator-cell {
+      border-right: 1px solid #edf2f7 !important;
+      padding: 0.75rem 0.5rem;
+      transition: background-color 0.1s;
+    }
+    .tabulator-cell:last-child {
+        border-right: none !important;
+    }
+    .tabulator-cell, .tabulator-row {
+      font-size: 0.875rem;
+      color: var(--text-main);
+    }
+    .tabulator-row {
+        transition: background-color 0.2s ease-in-out;
+    }
+    .tabulator-row:hover {
+      background-color: #f0f4f8 !important;
+    }
+    .tabulator-row.tabulator-row-even {
+      background-color: #f9fbfd; /* Subtle alternating row color */
+    }
+    .tabulator-row.tabulator-row-even:hover {
+        background-color: #f0f4f8 !important;
+    }
+    .tabulator-paginator {
+      background-color: var(--background);
+      border-top: none !important;
+      padding: 1rem 0;
+    }
+    .tabulator-page, .tabulator-page.active {
+        background-color: var(--surface) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-main) !important;
+    }
+    .tabulator-page:hover {
+        background-color: #edf2f7 !important;
+    }
+    .tabulator-cell.missing-data {
+        background-color: #fff5f5 !important;
+        color: #ef4444 !important;
+        font-style: italic;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <header class="sticky top-0 z-10 bg-white/90 backdrop-blur-md shadow-sm p-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">EA</div>
+        <h1 class="text-xl font-semibold text-slate-900">Excel Data Analyzer</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="inline-flex items-center px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition cursor-pointer shadow-lg hover:shadow-xl">
+          <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+          <span class="font-medium">Upload File</span>
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+        </label>
+        <button id="btnReset" class="px-4 py-2 rounded-xl bg-white text-slate-600 border border-slate-300 hover:bg-slate-100 transition">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4">
+    <div id="dropZone" class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-3xl bg-white p-12 text-center text-slate-500 hover:border-blue-400 transition hover:shadow-lg">
+      <div class="mx-auto w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+        <i data-lucide="file-spreadsheet" class="w-8 h-8"></i>
+      </div>
+      <p class="text-xl font-medium text-slate-700">Drag & drop your file here</p>
+      <p class="text-sm mt-1 text-slate-500">or click <span class="text-blue-600 underline cursor-pointer" onclick="document.getElementById('fileInput').click()">browse</span> to select a file.</p>
+    </div>
+
+    <div id="loading" class="hidden text-center mt-8">
+      <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      <p class="text-sm text-slate-600 mt-2">Processing file...</p>
+    </div>
+
+    <div id="error" class="hidden mt-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"></div>
+
+    <section id="dashboard" class="mt-8 hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <i data-lucide="sheet" class="w-5 h-5 text-slate-500"></i>
+          <div>
+            <div id="fileName" class="font-medium text-lg text-slate-800">-</div>
+            <div id="sheetActive" class="text-sm text-slate-500">-</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="downloadCSV" class="btn-primary px-4 py-2 rounded-xl text-sm font-medium">Download Clean CSV</button>
+          <button id="exportPNG" class="btn-secondary px-4 py-2 rounded-xl text-sm font-medium">Export Charts PNG</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-1">Rows</div>
+          <div id="kRows" class="text-3xl font-bold text-slate-900">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-1">Columns</div>
+          <div id="kCols" class="text-3xl font-bold text-slate-900">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-1">Missing Cells</div>
+          <div id="kMissing" class="text-3xl font-bold text-slate-900">-</div>
+        </div>
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-1">Numeric Columns</div>
+          <div id="kNumeric" class="text-3xl font-bold text-slate-900">-</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card lg:col-span-2">
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div class="flex-1">
+              <label class="text-sm text-slate-500">Column</label>
+              <select id="colSelect" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-slate-50"></select>
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">Top N</label>
+              <input id="topN" type="number" value="10" min="3" max="100" class="mt-1 px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 w-20" />
+            </div>
+            <button id="analyzeBtn" class="btn-primary px-5 py-2 rounded-xl">Analyze</button>
+          </div>
+          <div class="mt-6 chart-wrap">
+            <canvas id="colChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-3">Quick Insights</div>
+          <ul id="insights" class="list-disc ml-5 text-sm text-slate-700 space-y-2"></ul>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <div class="text-sm font-medium text-slate-500">Correlation Heatmap (numeric)</div>
+            <button id="reheat" class="btn-secondary px-3 py-1 rounded-lg text-xs">Recompute</button>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="heatmapChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="text-sm font-medium text-slate-500 mb-3">Distribution (Auto)</div>
+          <div class="chart-wrap">
+            <canvas id="distChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-sm font-medium text-slate-500">Data Preview</div>
+          <div class="flex gap-2">
+            <select id="sheetSelect" class="px-3 py-2 rounded-lg border border-slate-300 bg-slate-50"></select>
+            <button id="loadSheet" class="btn-secondary px-3 py-2 rounded-xl text-sm">Load Sheet</button>
+          </div>
+        </div>
+        <div class="overflow-auto rounded-lg border border-slate-200">
+          <div id="dataTable"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  lucide.createIcons();
+
+  // state
+  let workbook = null;
+  let df = [];
+  let activeSheet = null;
+  let charts = {};
+  let dataTable = null;
+
+  const $ = s => document.querySelector(s);
+  const $$ = s => document.querySelectorAll(s);
+
+  // drag/drop handlers
+  const dropZone = $('#dropZone');
+  ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+    dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+  });
+  ['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, ()=> dropZone.classList.add('border-blue-400','bg-blue-50')));
+  ['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, ()=> dropZone.classList.remove('border-blue-400','bg-blue-50')));
+  dropZone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  $('#fileInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) handleFile(f);
+  });
+
+  $('#btnReset').addEventListener('click', ()=> {
+    if (dataTable) {
+      dataTable.destroy();
+      dataTable = null;
+    }
+    location.reload();
+  });
+
+  async function handleFile(file) {
+    try {
+      showLoading();
+      hideError();
+      $('#fileName').textContent = `${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      let wb;
+
+      if (ext === 'csv') {
+        const txt = await file.text();
+        wb = XLSX.read(txt, { type: 'string' });
+      } else {
+        const data = await file.arrayBuffer();
+        wb = XLSX.read(data, { type: 'array' });
+      }
+
+      workbook = wb;
+
+      const sheetSel = $('#sheetSelect');
+      sheetSel.innerHTML = '';
+      wb.SheetNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        sheetSel.appendChild(opt);
+      });
+
+      activeSheet = wb.SheetNames[0];
+      $('#sheetSelect').value = activeSheet;
+      $('#sheetActive').textContent = `Active sheet: ${activeSheet}`;
+
+      await loadSheet(activeSheet);
+
+      $('#dashboard').classList.remove('hidden');
+      dropZone.classList.add('hidden');
+      hideLoading();
+    } catch (err) {
+      hideLoading();
+      showError('Failed to parse file: ' + (err.message || err));
+      console.error(err);
+    }
+  }
+
+  $('#loadSheet').addEventListener('click', async ()=> {
+    const s = $('#sheetSelect').value;
+    if (s) {
+      showLoading();
+      await loadSheet(s);
+      hideLoading();
+    }
+  });
+
+  async function loadSheet(name) {
+    try {
+      const ws = workbook.Sheets[name];
+      activeSheet = name;
+      $('#sheetActive').textContent = `Active sheet: ${name}`;
+
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (!aoa || aoa.length === 0) {
+        df = [];
+      } else {
+        const headersRaw = aoa[0].map((h, idx) => (h === null || h === undefined || String(h).trim() === '') ? `Column_${idx+1}` : String(h));
+        const rows = aoa.slice(1).map(row => {
+          const obj = {};
+          for (let i=0;i<headersRaw.length;i++) {
+            obj[headersRaw[i]] = (i < row.length) ? row[i] : null;
+          }
+          return obj;
+        });
+        df = rows.filter(r => Object.values(r).some(v => v !== null && String(v).trim() !== ''));
+      }
+
+      buildDataTable(df);
+      computeKPIs(df);
+      populateColumnSelect(df);
+      buildInsights(df);
+      buildHeatmap(df);
+      autoDistribution(df);
+    } catch (err) {
+      console.error('loadSheet error', err);
+      showError('Error loading sheet: ' + (err.message || err));
+    }
+  }
+
+  function buildDataTable(data) {
+    if (dataTable) {
+      dataTable.destroy();
+    }
+
+    if (!data || !data.length) {
+      const tableDiv = document.getElementById('dataTable');
+      tableDiv.innerHTML = '<div class="p-4 text-center text-slate-500">No data to display.</div>';
+      return;
+    }
+
+    const allKeys = new Set(data.flatMap(r => Object.keys(r)));
+
+    // Create a formatter function for each column to handle missing data
+    const missingDataFormatter = (cell, formatterParams, onRendered) => {
+        const val = cell.getValue();
+        if (val === null || val === undefined || String(val).trim() === '') {
+            cell.getElement().classList.add('missing-data');
+            return "N/A";
+        }
+        return val;
+    };
+
+    const columns = Array.from(allKeys).map(key => ({
+      title: key,
+      field: key,
+      headerFilter: "input",
+      headerFilterPlaceholder: "Filter...",
+      formatter: missingDataFormatter,
+    }));
+
+    dataTable = new Tabulator("#dataTable", {
+      data: data,
+      layout: "fitDataStretch",
+      pagination: "local",
+      paginationSize: 20,
+      columns: columns,
+      movableColumns: true,
+      resizableColumns: true,
+      responsiveLayout: "collapse",
+      responsiveCollapse: {
+        toggleElement: "<span>&#x25BC;</span>"
+      }
+    });
+  }
+
+  function computeKPIs(data) {
+    const rows = data.length;
+    const allKeys = new Set(); data.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+    const cols = allKeys.size;
+    let missing = 0;
+    let numericCols = 0;
+    const keys = Array.from(allKeys);
+
+    data.forEach(r => {
+      keys.forEach(k => {
+        const v = r[k];
+        if (v === null || v === undefined || String(v).trim() === '') missing++;
+      });
+    });
+
+    numericCols = keys.filter(k => {
+      const vals = data.map(r => r[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (!vals.length) return false;
+      return vals.every(v => (typeof v === 'number') || (!isNaN(parseFloat(v)) && isFinite(parseFloat(v))));
+    }).length;
+
+    $('#kRows').textContent = rows.toLocaleString();
+    $('#kCols').textContent = cols.toLocaleString();
+    $('#kMissing').textContent = missing.toLocaleString();
+    $('#kNumeric').textContent = numericCols.toLocaleString();
+  }
+
+  function inferType(arr) {
+    const vals = arr.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    if (!vals.length) return 'unknown';
+    const nums = vals.filter(v => typeof v === 'number' || (!isNaN(parseFloat(v)) && isFinite(parseFloat(v))));
+    if (nums.length === vals.length) return 'number';
+    const dates = vals.filter(v => {
+      if (v instanceof Date) return true;
+      const d = new Date(v);
+      return !isNaN(d.getTime());
+    });
+    if (dates.length > vals.length * 0.8) return 'date';
+    return 'string';
+  }
+
+  function populateColumnSelect(data) {
+    const sel = $('#colSelect');
+    sel.innerHTML = '';
+    if (!data || !data.length) return;
+    const keys = new Set();
+    data.forEach(r => Object.keys(r).forEach(k => keys.add(k)));
+    Array.from(keys).forEach(k => {
+      const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o);
+    });
+  }
+
+  function summarize(arr) {
+    const clean = arr.map(v => (typeof v === 'number' ? v : parseFloat(v))).filter(v => !isNaN(v));
+    if (!clean.length) return null;
+    const n = clean.length;
+    const sum = clean.reduce((a,b)=>a+b,0);
+    const avg = sum/n;
+    const min = Math.min(...clean);
+    const max = Math.max(...clean);
+    const sorted = [...clean].sort((a,b)=>a-b);
+    const median = n % 2 ? sorted[(n-1)/2] : (sorted[n/2 - 1] + sorted[n/2]) / 2;
+    const sd = Math.sqrt(clean.reduce((a,b)=>a+Math.pow(b-avg,2),0)/n);
+    return { n, sum, avg, min, max, median, sd };
+  }
+
+  function buildInsights(data) {
+    const ul = $('#insights'); ul.innerHTML = '';
+    if (!data || !data.length) return;
+    const keys = Array.from(new Set(data.flatMap(r => Object.keys(r))));
+    const miss = keys.map(k => ({ k, m: data.filter(r => r[k] === null || r[k] === undefined || String(r[k]).trim() === '').length }))
+                  .sort((a,b)=>b.m-a.m).slice(0,3);
+    miss.forEach(x => { if (x.m>0) addInsight(`Missing <b>${x.k}</b>: ${x.m} (${((x.m/data.length)*100).toFixed(1)}%)`); });
+    const numKeys = keys.filter(k => inferType(data.map(r => r[k])) === 'number');
+    if (numKeys.length >= 2) {
+      let best = {a:null,b:null,r: -2};
+      for (let i=0;i<numKeys.length;i++){
+        for (let j=i+1;j<numKeys.length;j++){
+          const a = numKeys[i], b = numKeys[j];
+          const pairs = data.map(r => [r[a], r[b]])
+            .filter(([x,y])=> x!==null && x!==undefined && y!==null && y!==undefined && String(x).trim()!=='' && String(y).trim()!=='')
+            .map(([x,y])=>[parseFloat(x), parseFloat(y)])
+            .filter(([x,y])=> !isNaN(x) && !isNaN(y));
+          if (pairs.length < 3) continue;
+          const xs = pairs.map(p=>p[0]), ys = pairs.map(p=>p[1]);
+          const r = pearson(xs, ys);
+          if (Math.abs(r) > Math.abs(best.r)) best = {a,b,r};
+        }
+      }
+      if (best.a) addInsight(`Strongest correlation: <b>${best.a}</b> vs <b>${best.b}</b> (r=${best.r.toFixed(2)})`);
+    }
+
+    const varCols = numKeys.map(k => {
+      const s = summarize(data.map(r => r[k])); return s ? {k, sd: s.sd, avg: s.avg} : null;
+    }).filter(Boolean).sort((a,b)=>b.sd-a.sd)[0];
+    if (varCols) addInsight(`Most variable: <b>${varCols.k}</b> (SD=${varCols.sd.toFixed(2)})`);
+
+    const totalCells = keys.length * data.length;
+    const filled = totalCells - miss.reduce((s,m)=>s+m.m,0);
+    addInsight(`Data completeness: <b>${((filled/totalCells)*100).toFixed(1)}%</b>`);
+
+    function addInsight(html) { const li = document.createElement('li'); li.innerHTML = html; ul.appendChild(li); }
+  }
+
+  function pearson(x,y) {
+    const mean = a => a.reduce((s,v)=>s+v,0)/a.length;
+    const mx = mean(x), my = mean(y);
+    const num = x.map((xi,i)=> (xi-mx)*(y[i]-my)).reduce((a,b)=>a+b,0);
+    const den = Math.sqrt(x.reduce((a,b)=>a+Math.pow(b-mx,2),0) * y.reduce((a,b)=>a+Math.pow(b-my,2),0));
+    return den === 0 ? 0 : num/den;
+  }
+
+  $('#analyzeBtn').addEventListener('click', analyzeColumn);
+  function analyzeColumn() {
+    const col = $('#colSelect').value;
+    if (!col || !df.length) return;
+    const series = df.map(r => r[col]);
+    const type = inferType(series);
+    if (type === 'number') {
+      const nums = series.map(v => (typeof v === 'number' ? v : parseFloat(v))).filter(v => !isNaN(v));
+      if (!nums.length) { clearChart('colChart'); return; }
+      const bins = Math.min(20, Math.max(5, Math.ceil(Math.sqrt(nums.length))));
+      const min = Math.min(...nums), max = Math.max(...nums), step = (max-min)/bins || 1;
+      const counts = new Array(bins).fill(0);
+      nums.forEach(v => {
+        let i = Math.floor((v-min)/step); if (i < 0) i = 0; if (i >= bins) i = bins-1; counts[i]++;
+      });
+      const labels = counts.map((_,i) => `${(min + i*step).toFixed(1)}–${(min + (i+1)*step).toFixed(1)}`);
+      drawBar('colChart', labels, counts, `Distribution — ${col}`);
+    } else {
+      const freq = {};
+      series.forEach(v => { const k = (v===null||v===undefined||String(v).trim()==='')? '(blank)' : String(v); freq[k] = (freq[k]||0)+1; });
+      const entries = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, Math.max(5, parseInt($('#topN').value||10)));
+      drawBar('colChart', entries.map(e=> e[0].length > 25 ? e[0].slice(0,22)+'...' : e[0]), entries.map(e=> e[1]), `Top values — ${col}`);
+    }
+  }
+
+  $('#reheat').addEventListener('click', ()=> buildHeatmap(df));
+  function buildHeatmap(data) {
+    if (!data || !data.length) { clearChart('heatmapChart'); return; }
+    const keys = Array.from(new Set(data.flatMap(r=>Object.keys(r))));
+    const numKeys = keys.filter(k => inferType(data.map(r=>r[k])) === 'number');
+    if (numKeys.length < 2) {
+      clearChart('heatmapChart');
+      const ctx = document.getElementById('heatmapChart').getContext('2d');
+      ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+      ctx.fillStyle = '#718096';
+      ctx.font = '14px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Need at least 2 numeric columns for heatmap', ctx.canvas.width/2, ctx.canvas.height/2);
+      return;
+    }
+
+    const matrix = [];
+    for (let i=0;i<numKeys.length;i++){
+      for (let j=0;j<numKeys.length;j++){
+        const a = numKeys[i], b = numKeys[j];
+        const pairs = data.map(r=>[r[a], r[b]])
+          .filter(([x,y])=> x!==null && x!==undefined && y!==null && y!==undefined && String(x).trim()!=='' && String(y).trim()!=='')
+          .map(([x,y])=>[parseFloat(x), parseFloat(y)])
+          .filter(([x,y])=> !isNaN(x) && !isNaN(y));
+        let r = 0;
+        if (pairs.length >= 3) {
+          const xs = pairs.map(p=>p[0]), ys = pairs.map(p=>p[1]);
+          r = pearson(xs, ys);
+        }
+        matrix.push({ x: j, y: i, v: r });
+      }
+    }
+
+    const ctx = document.getElementById('heatmapChart').getContext('2d');
+    clearChart('heatmapChart');
+    charts.heatmapChart = new Chart(ctx, {
+      type: 'matrix',
+      data: {
+        datasets: [{
+          label: 'Correlation',
+          data: matrix,
+          width: ({chart}) => Math.max(20, (chart.chartArea||{}).width / numKeys.length),
+          height: ({chart}) => Math.max(20, (chart.chartArea||{}).height / numKeys.length),
+          backgroundColor: ({raw}) => {
+            const v = raw.v || 0;
+            const intensity = Math.abs(v);
+            if (v >= 0) return `rgba(66,153,225,${Math.min(0.95, intensity*0.9 + 0.15)})`;
+            return `rgba(239,68,68,${Math.min(0.95, intensity*0.9 + 0.15)})`;
+          },
+          borderColor: 'rgba(255,255,255,0.8)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => `${numKeys[items[0].raw.y]} vs ${numKeys[items[0].raw.x]}`,
+              label: (ctx) => `r = ${(ctx.raw.v||0).toFixed(3)}`
+            }
+          }
+        },
+        scales: {
+          x: { type: 'linear', position: 'bottom', ticks: { callback: v => numKeys[Math.round(v)] || '' , stepSize: 1, min: 0, max: numKeys.length - 1 }, grid: { display: false } },
+          y: { type: 'linear', ticks: { callback: v => numKeys[Math.round(v)] || '', stepSize: 1, min: 0, max: numKeys.length - 1 }, grid: { display: false }, reverse: true }
+        }
+      }
+    });
+  }
+
+  function autoDistribution(data) {
+    if (!data || !data.length) return;
+    const keys = Array.from(new Set(data.flatMap(r=>Object.keys(r))));
+    let chosen = keys.find(k => inferType(data.map(r=>r[k])) === 'number');
+    if (!chosen) chosen = keys[0];
+    if (chosen) {
+      $('#colSelect').value = chosen;
+      analyzeColumn();
+      drawDistribution(chosen);
+    }
+  }
+  function drawDistribution(col) {
+    const series = df.map(r => r[col]);
+    const type = inferType(series);
+    if (type === 'number') {
+      const nums = series.map(v => typeof v === 'number' ? v : parseFloat(v)).filter(v => !isNaN(v));
+      if (!nums.length) return;
+      const bins = Math.min(12, Math.max(5, Math.ceil(Math.sqrt(nums.length))));
+      const min = Math.min(...nums), max = Math.max(...nums), step = (max-min)/bins || 1;
+      const counts = new Array(bins).fill(0);
+      nums.forEach(v => {
+        let i = Math.floor((v-min)/step); if (i < 0) i = 0; if (i >= bins) i = bins-1; counts[i]++;
+      });
+      const labels = counts.map((_,i)=> `${(min + i*step).toFixed(1)}–${(min + (i+1)*step).toFixed(1)}`);
+      drawLine('distChart', labels, counts, `Distribution — ${col}`);
+    } else {
+      const freq = {};
+      series.forEach(v => { const k = (v===null||v===undefined||String(v).trim()==='')? '(blank)' : String(v); freq[k] = (freq[k]||0)+1; });
+      const entries = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      drawLine('distChart', entries.map(e => e[0].length>20 ? e[0].slice(0,17)+'...' : e[0]), entries.map(e => e[1]), `Top categories — ${col}`);
+    }
+  }
+
+  function clearChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+  function drawBar(id, labels, data, title) {
+    clearChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: title, data, backgroundColor: 'rgba(66,153,225,0.85)', borderColor: 'rgba(66,153,225,1)', borderWidth: 1 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend: { display:false }, title:{ display:true, text:title } } }
+    });
+  }
+  function drawLine(id, labels, data, title) {
+    clearChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: title, data, fill:true, backgroundColor:'rgba(66,153,225,0.15)', borderColor:'rgba(66,153,225,1)', tension:0.3 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, title:{ display:true, text:title } } }
+    });
+  }
+
+  $('#downloadCSV').addEventListener('click', () => {
+    if (!df.length) return alert('No data to download');
+    const ws = XLSX.utils.json_to_sheet(df);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, activeSheet || 'Sheet1');
+    XLSX.writeFile(wb, `${(activeSheet||'data')}_cleaned.csv`);
+  });
+
+  $('#exportPNG').addEventListener('click', () => {
+    Object.keys(charts).forEach((k, idx) => {
+      try {
+        const url = charts[k].toBase64Image();
+        const a = document.createElement('a'); a.href = url; a.download = `${activeSheet||'data'}_${k}.png`; document.body.appendChild(a); a.click(); a.remove();
+      } catch (err) { console.error('export PNG error', err); }
+    });
+  });
+
+  function showLoading(){ $('#loading').classList.remove('hidden'); }
+  function hideLoading(){ $('#loading').classList.add('hidden'); }
+  function showError(msg){ $('#error').textContent = msg; $('#error').classList.remove('hidden'); }
+  function hideError(){ $('#error').classList.add('hidden'); }
+
+  console.log('Client-side Excel Data Analyzer ready');
+</script>
+</body>
+</html>

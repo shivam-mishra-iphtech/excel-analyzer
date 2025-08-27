@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Excel Data Analyzer — Client-side</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+
+  <link href="https://unpkg.com/tabulator-tables@6.2.0/dist/css/tabulator.min.css" rel="stylesheet">
+  <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.0/dist/js/tabulator.min.js"></script>
+
+  <style>
+    /* small fix for chart canvases inside responsive containers */
+    .chart-wrap { height: 250px; }
+
+    /* Fix for Tabulator table width */
+    #dataTable {
+      width: 100%;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <header class="sticky top-0 z-10 bg-white/90 backdrop-blur shadow p-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between px-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-bold">EA</div>
+        <h1 class="text-lg font-semibold">Excel Data Analyzer — Client-side</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer">
+          <i data-lucide="upload" class="w-4 h-4 mr-2"></i>
+          <span>Upload Excel / CSV</span>
+          <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+        </label>
+        <button id="btnReset" class="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4">
+    <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-3xl bg-white p-8 text-center text-slate-500 hover:border-indigo-400 transition">
+      <div class="mx-auto w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+        <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+      </div>
+      <p class="text-lg font-medium">Drag & drop an Excel (.xlsx/.xls) or CSV file here</p>
+      <p class="text-sm">or click <span class="text-indigo-600 underline cursor-pointer" onclick="document.getElementById('fileInput').click()">browse</span></p>
+    </div>
+
+    <div id="loading" class="hidden text-center mt-4">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <p class="text-sm text-slate-600 mt-2">Processing…</p>
+    </div>
+
+    <div id="error" class="hidden mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded"></div>
+
+    <section id="dashboard" class="mt-8 hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <i data-lucide="sheet" class="w-5 h-5 text-slate-500"></i>
+          <div>
+            <div id="fileName" class="font-medium">-</div>
+            <div id="sheetActive" class="text-sm text-slate-500">-</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="downloadCSV" class="px-3 py-2 rounded-xl bg-indigo-600 text-white">Download Clean CSV</button>
+          <button id="exportPNG" class="px-3 py-2 rounded-xl bg-slate-900 text-white">Export Charts PNG</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="rounded-2xl bg-white p-4 shadow">
+          <div class="text-sm text-slate-500">Rows</div>
+          <div id="kRows" class="text-2xl font-semibold">-</div>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow">
+          <div class="text-sm text-slate-500">Columns</div>
+          <div id="kCols" class="text-2xl font-semibold">-</div>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow">
+          <div class="text-sm text-slate-500">Missing Cells</div>
+          <div id="kMissing" class="text-2xl font-semibold">-</div>
+        </div>
+        <div class="rounded-2xl bg-white p-4 shadow">
+          <div class="text-sm text-slate-500">Numeric Columns</div>
+          <div id="kNumeric" class="text-2xl font-semibold">-</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="rounded-2xl bg-white p-5 shadow lg:col-span-2">
+          <div class="flex gap-3 items-end">
+            <div class="flex-1">
+              <label class="text-sm text-slate-500">Column</label>
+              <select id="colSelect" class="mt-1 w-full px-3 py-2 rounded border"></select>
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">Top N</label>
+              <input id="topN" type="number" value="10" min="3" max="100" class="mt-1 px-2 py-2 rounded border w-20" />
+            </div>
+            <button id="analyzeBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white">Analyze</button>
+          </div>
+          <div class="mt-4 chart-wrap">
+            <canvas id="colChart"></canvas>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-white p-5 shadow">
+          <div class="text-sm text-slate-500 mb-2">Quick Insights</div>
+          <ul id="insights" class="list-disc ml-5 text-sm text-slate-700 space-y-1"></ul>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="rounded-2xl bg-white p-5 shadow lg:col-span-2">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm text-slate-500">Correlation Heatmap (numeric)</div>
+            <button id="reheat" class="px-2 py-1 text-sm rounded bg-slate-100">Recompute</button>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="heatmapChart"></canvas>
+          </div>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow">
+          <div class="text-sm text-slate-500 mb-2">Distribution (Auto)</div>
+          <div class="chart-wrap">
+            <canvas id="distChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white p-4 shadow">
+        <div class="flex items-center justify-between mb-3">
+          <div class="text-sm text-slate-500">Data Preview</div>
+          <div class="flex gap-2">
+            <select id="sheetSelect" class="px-3 py-2 rounded border"></select>
+            <button id="loadSheet" class="px-3 py-2 rounded bg-slate-100">Load Sheet</button>
+          </div>
+        </div>
+        <div class="overflow-auto">
+          <div id="dataTable"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+  lucide.createIcons();
+
+  // state
+  let workbook = null;
+  let df = []; // array of row objects for active sheet
+  let activeSheet = null;
+  let charts = {};
+  let dataTable = null; // Store Tabulator instance
+
+  const $ = s => document.querySelector(s);
+
+  // drag/drop handlers
+  const dropZone = $('#dropZone');
+  ;['dragenter','dragover','dragleave','drop'].forEach(ev => {
+    dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+  });
+  ;['dragenter','dragover'].forEach(ev => dropZone.addEventListener(ev, ()=> dropZone.classList.add('border-indigo-400','bg-indigo-50')));
+  ;['dragleave','drop'].forEach(ev => dropZone.addEventListener(ev, ()=> dropZone.classList.remove('border-indigo-400','bg-indigo-50')));
+  dropZone.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  $('#fileInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) handleFile(f);
+  });
+
+  $('#btnReset').addEventListener('click', ()=> {
+    if (dataTable) {
+      dataTable.destroy();
+      dataTable = null;
+    }
+    location.reload();
+  });
+
+  async function handleFile(file) {
+    try {
+      showLoading();
+      hideError();
+      $('#fileName').textContent = `${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      let wb;
+
+      if (ext === 'csv') {
+        // read as text then parse
+        const txt = await file.text();
+        wb = XLSX.read(txt, { type: 'string' });
+      } else {
+        const data = await file.arrayBuffer();
+        wb = XLSX.read(data, { type: 'array' });
+      }
+
+      workbook = wb;
+
+      // populate sheet selector
+      const sheetSel = $('#sheetSelect');
+      sheetSel.innerHTML = '';
+      wb.SheetNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        sheetSel.appendChild(opt);
+      });
+
+      activeSheet = wb.SheetNames[0];
+      $('#sheetSelect').value = activeSheet;
+      $('#sheetActive').textContent = `Active sheet: ${activeSheet}`;
+
+      await loadSheet(activeSheet);
+
+      // show dashboard
+      $('#dashboard').classList.remove('hidden');
+      dropZone.classList.add('hidden');
+      hideLoading();
+    } catch (err) {
+      hideLoading();
+      showError('Failed to parse file: ' + (err.message || err));
+      console.error(err);
+    }
+  }
+
+  $('#loadSheet').addEventListener('click', async ()=> {
+    const s = $('#sheetSelect').value;
+    if (s) {
+      showLoading();
+      await loadSheet(s);
+      hideLoading();
+    }
+  });
+
+  async function loadSheet(name) {
+    try {
+      const ws = workbook.Sheets[name];
+      activeSheet = name;
+      $('#sheetActive').textContent = `Active sheet: ${name}`;
+
+      // Use header row -> array of arrays first
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (!aoa || aoa.length === 0) {
+        df = [];
+      } else {
+        const headersRaw = aoa[0].map((h, idx) => (h === null || h === undefined || String(h).trim() === '') ? `Column_${idx+1}` : String(h));
+        const rows = aoa.slice(1).map(row => {
+          const obj = {};
+          for (let i=0;i<headersRaw.length;i++) {
+            obj[headersRaw[i]] = (i < row.length) ? row[i] : null;
+          }
+          return obj;
+        });
+        // keep rows that have any non-empty value
+        df = rows.filter(r => Object.values(r).some(v => v !== null && String(v).trim() !== ''));
+      }
+
+      buildDataTable(df);
+      computeKPIs(df);
+      populateColumnSelect(df);
+      buildInsights(df);
+      buildHeatmap(df);
+      autoDistribution(df);
+    } catch (err) {
+      console.error('loadSheet error', err);
+      showError('Error loading sheet: ' + (err.message || err));
+    }
+  }
+
+  function buildDataTable(data) {
+    // Check if a Tabulator instance already exists
+    if (dataTable) {
+      // Destroy the existing table instance
+      dataTable.destroy();
+    }
+
+    if (!data || !data.length) {
+      // If there's no data, we can display a message
+      const tableDiv = document.getElementById('dataTable');
+      tableDiv.innerHTML = '<p>No data to display</p>';
+      return;
+    }
+
+    // Get all unique keys to define columns
+    const allKeys = new Set(data.flatMap(r => Object.keys(r)));
+    const columns = Array.from(allKeys).map(key => ({
+      title: key,
+      field: key,
+      headerFilter: "input"
+    }));
+
+    // Initialize the new Tabulator instance
+    dataTable = new Tabulator("#dataTable", {
+      data: data,
+      layout: "fitDataStretch",
+      pagination: "local",
+      paginationSize: 25,
+      columns: columns,
+      initialSort: [], // Disable default sorting
+      movableColumns: true, // Allow user to reorder columns
+      resizableColumns: true, // Allow user to resize columns
+      responsiveLayout: true,
+    });
+  }
+
+  function computeKPIs(data) {
+    const rows = data.length;
+    const allKeys = new Set(); data.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+    const cols = allKeys.size;
+    let missing = 0;
+    let numericCols = 0;
+    const keys = Array.from(allKeys);
+
+    data.forEach(r => {
+      keys.forEach(k => {
+        const v = r[k];
+        if (v === null || v === undefined || String(v).trim() === '') missing++;
+      });
+    });
+
+    numericCols = keys.filter(k => {
+      const vals = data.map(r => r[k]).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+      if (!vals.length) return false;
+      return vals.every(v => (typeof v === 'number') || (!isNaN(parseFloat(v)) && isFinite(parseFloat(v))));
+    }).length;
+
+    $('#kRows').textContent = rows.toLocaleString();
+    $('#kCols').textContent = cols.toLocaleString();
+    $('#kMissing').textContent = missing.toLocaleString();
+    $('#kNumeric').textContent = numericCols.toLocaleString();
+  }
+
+  function inferType(arr) {
+    const vals = arr.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    if (!vals.length) return 'unknown';
+    const nums = vals.filter(v => typeof v === 'number' || (!isNaN(parseFloat(v)) && isFinite(parseFloat(v))));
+    if (nums.length === vals.length) return 'number';
+    const dates = vals.filter(v => {
+      if (v instanceof Date) return true;
+      const d = new Date(v);
+      return !isNaN(d.getTime());
+    });
+    if (dates.length > vals.length * 0.8) return 'date';
+    return 'string';
+  }
+
+  function populateColumnSelect(data) {
+    const sel = $('#colSelect');
+    sel.innerHTML = '';
+    if (!data || !data.length) return;
+    const keys = new Set();
+    data.forEach(r => Object.keys(r).forEach(k => keys.add(k)));
+    Array.from(keys).forEach(k => {
+      const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o);
+    });
+  }
+
+  function summarize(arr) {
+    const clean = arr.map(v => (typeof v === 'number' ? v : parseFloat(v))).filter(v => !isNaN(v));
+    if (!clean.length) return null;
+    const n = clean.length;
+    const sum = clean.reduce((a,b)=>a+b,0);
+    const avg = sum/n;
+    const min = Math.min(...clean);
+    const max = Math.max(...clean);
+    const sorted = [...clean].sort((a,b)=>a-b);
+    const median = n % 2 ? sorted[(n-1)/2] : (sorted[n/2 - 1] + sorted[n/2]) / 2;
+    const sd = Math.sqrt(clean.reduce((a,b)=>a+Math.pow(b-avg,2),0)/n);
+    return { n, sum, avg, min, max, median, sd };
+  }
+
+  function buildInsights(data) {
+    const ul = $('#insights'); ul.innerHTML = '';
+    if (!data || !data.length) return;
+    const keys = Array.from(new Set(data.flatMap(r => Object.keys(r))));
+    // missing top3
+    const miss = keys.map(k => ({ k, m: data.filter(r => r[k] === null || r[k] === undefined || String(r[k]).trim() === '').length }))
+                  .sort((a,b)=>b.m-a.m).slice(0,3);
+    miss.forEach(x => { if (x.m>0) addInsight(`Missing <b>${x.k}</b>: ${x.m} (${((x.m/data.length)*100).toFixed(1)}%)`); });
+
+    // numeric columns list
+    const numKeys = keys.filter(k => inferType(data.map(r => r[k])) === 'number');
+    if (numKeys.length >= 2) {
+      let best = {a:null,b:null,r: -2};
+      for (let i=0;i<numKeys.length;i++){
+        for (let j=i+1;j<numKeys.length;j++){
+          const a = numKeys[i], b = numKeys[j];
+          const pairs = data.map(r => [r[a], r[b]])
+            .filter(([x,y])=> x!==null && x!==undefined && y!==null && y!==undefined && String(x).trim()!=='' && String(y).trim()!=='')
+            .map(([x,y])=>[parseFloat(x), parseFloat(y)])
+            .filter(([x,y])=> !isNaN(x) && !isNaN(y));
+          if (pairs.length < 3) continue;
+          const xs = pairs.map(p=>p[0]), ys = pairs.map(p=>p[1]);
+          const r = pearson(xs, ys);
+          if (Math.abs(r) > Math.abs(best.r)) best = {a,b,r};
+        }
+      }
+      if (best.a) addInsight(`Strongest correlation: <b>${best.a}</b> vs <b>${best.b}</b> (r=${best.r.toFixed(2)})`);
+    }
+
+    const varCols = numKeys.map(k => {
+      const s = summarize(data.map(r => r[k])); return s ? {k, sd: s.sd, avg: s.avg} : null;
+    }).filter(Boolean).sort((a,b)=>b.sd-a.sd)[0];
+    if (varCols) addInsight(`Most variable: <b>${varCols.k}</b> (SD=${varCols.sd.toFixed(2)})`);
+
+    // completeness
+    const totalCells = keys.length * data.length;
+    const filled = totalCells - miss.reduce((s,m)=>s+m.m,0);
+    addInsight(`Data completeness: <b>${((filled/totalCells)*100).toFixed(1)}%</b>`);
+
+    function addInsight(html) { const li = document.createElement('li'); li.innerHTML = html; ul.appendChild(li); }
+  }
+
+  function pearson(x,y) {
+    const mean = a => a.reduce((s,v)=>s+v,0)/a.length;
+    const mx = mean(x), my = mean(y);
+    const num = x.map((xi,i)=> (xi-mx)*(y[i]-my)).reduce((a,b)=>a+b,0);
+    const den = Math.sqrt(x.reduce((a,b)=>a+Math.pow(b-mx,2),0) * y.reduce((a,b)=>a+Math.pow(b-my,2),0));
+    return den === 0 ? 0 : num/den;
+  }
+
+  // analyze column
+  $('#analyzeBtn').addEventListener('click', analyzeColumn);
+  function analyzeColumn() {
+    const col = $('#colSelect').value;
+    if (!col || !df.length) return;
+    const series = df.map(r => r[col]);
+    const type = inferType(series);
+    if (type === 'number') {
+      const nums = series.map(v => (typeof v === 'number' ? v : parseFloat(v))).filter(v => !isNaN(v));
+      if (!nums.length) { clearChart('colChart'); return; }
+      const bins = Math.min(20, Math.max(5, Math.ceil(Math.sqrt(nums.length))));
+      const min = Math.min(...nums), max = Math.max(...nums), step = (max-min)/bins || 1;
+      const counts = new Array(bins).fill(0);
+      nums.forEach(v => {
+        let i = Math.floor((v-min)/step); if (i < 0) i = 0; if (i >= bins) i = bins-1; counts[i]++;
+      });
+      const labels = counts.map((_,i) => `${(min + i*step).toFixed(1)}–${(min + (i+1)*step).toFixed(1)}`);
+      drawBar('colChart', labels, counts, `Distribution — ${col}`);
+    } else {
+      const freq = {};
+      series.forEach(v => { const k = (v===null||v===undefined||String(v).trim()==='')? '(blank)' : String(v); freq[k] = (freq[k]||0)+1; });
+      const entries = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0, Math.max(5, parseInt($('#topN').value||10)));
+      drawBar('colChart', entries.map(e=> e[0].length > 25 ? e[0].slice(0,22)+'...' : e[0]), entries.map(e=> e[1]), `Top values — ${col}`);
+    }
+  }
+
+  // heatmap
+  $('#reheat').addEventListener('click', ()=> buildHeatmap(df));
+  function buildHeatmap(data) {
+    if (!data || !data.length) { clearChart('heatmapChart'); return; }
+    const keys = Array.from(new Set(data.flatMap(r=>Object.keys(r))));
+    const numKeys = keys.filter(k => inferType(data.map(r=>r[k])) === 'number');
+    if (numKeys.length < 2) {
+      clearChart('heatmapChart');
+      const ctx = document.getElementById('heatmapChart').getContext('2d');
+      ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+      ctx.fillStyle = '#64748b';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Need at least 2 numeric columns for heatmap', ctx.canvas.width/2, ctx.canvas.height/2);
+      return;
+    }
+
+    const matrix = [];
+    for (let i=0;i<numKeys.length;i++){
+      for (let j=0;j<numKeys.length;j++){
+        const a = numKeys[i], b = numKeys[j];
+        const pairs = data.map(r=>[r[a], r[b]])
+          .filter(([x,y])=> x!==null && x!==undefined && y!==null && y!==undefined && String(x).trim()!=='' && String(y).trim()!=='')
+          .map(([x,y])=>[parseFloat(x), parseFloat(y)])
+          .filter(([x,y])=> !isNaN(x) && !isNaN(y));
+        let r = 0;
+        if (pairs.length >= 3) {
+          const xs = pairs.map(p=>p[0]), ys = pairs.map(p=>p[1]);
+          r = pearson(xs, ys);
+        }
+        matrix.push({ x: j, y: i, v: r });
+      }
+    }
+
+    const ctx = document.getElementById('heatmapChart').getContext('2d');
+    clearChart('heatmapChart');
+    charts.heatmapChart = new Chart(ctx, {
+      type: 'matrix',
+      data: {
+        datasets: [{
+          label: 'Correlation',
+          data: matrix,
+          width: ({chart}) => Math.max(20, (chart.chartArea||{}).width / numKeys.length),
+          height: ({chart}) => Math.max(20, (chart.chartArea||{}).height / numKeys.length),
+          backgroundColor: ({raw}) => {
+            const v = raw.v || 0;
+            const intensity = Math.abs(v);
+            if (v >= 0) return `rgba(79,70,229,${Math.min(0.95, intensity*0.9 + 0.15)})`;
+            return `rgba(239,68,68,${Math.min(0.95, intensity*0.9 + 0.15)})`;
+          },
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.8)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => `${numKeys[items[0].raw.y]} vs ${numKeys[items[0].raw.x]}`,
+              label: (ctx) => `r = ${(ctx.raw.v||0).toFixed(3)}`
+            }
+          }
+        },
+        scales: {
+          x: { type: 'linear', position: 'bottom', ticks: { callback: v => numKeys[Math.round(v)] || '' , stepSize: 1, min: 0, max: numKeys.length - 1 }, grid: { display: false } },
+          y: { type: 'linear', ticks: { callback: v => numKeys[Math.round(v)] || '', stepSize: 1, min: 0, max: numKeys.length - 1 }, grid: { display: false }, reverse: true }
+        }
+      }
+    });
+  }
+
+  // distribution chart (auto picks a column)
+  function autoDistribution(data) {
+    if (!data || !data.length) return;
+    const keys = Array.from(new Set(data.flatMap(r=>Object.keys(r))));
+    let chosen = keys.find(k => inferType(data.map(r=>r[k])) === 'number');
+    if (!chosen) chosen = keys[0];
+    if (chosen) {
+      $('#colSelect').value = chosen;
+      analyzeColumn();
+      // also draw distChart same as analyze for visual
+      drawDistribution(chosen);
+    }
+  }
+  function drawDistribution(col) {
+    const series = df.map(r => r[col]);
+    const type = inferType(series);
+    if (type === 'number') {
+      const nums = series.map(v => typeof v === 'number' ? v : parseFloat(v)).filter(v => !isNaN(v));
+      if (!nums.length) return;
+      const bins = Math.min(12, Math.max(5, Math.ceil(Math.sqrt(nums.length))));
+      const min = Math.min(...nums), max = Math.max(...nums), step = (max-min)/bins || 1;
+      const counts = new Array(bins).fill(0);
+      nums.forEach(v => {
+        let i = Math.floor((v-min)/step); if (i < 0) i = 0; if (i >= bins) i = bins-1; counts[i]++;
+      });
+      const labels = counts.map((_,i)=> `${(min + i*step).toFixed(1)}–${(min + (i+1)*step).toFixed(1)}`);
+      drawLine('distChart', labels, counts, `Distribution — ${col}`);
+    } else {
+      const freq = {};
+      series.forEach(v => { const k = (v===null||v===undefined||String(v).trim()==='')? '(blank)' : String(v); freq[k] = (freq[k]||0)+1; });
+      const entries = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8);
+      drawLine('distChart', entries.map(e => e[0].length>20 ? e[0].slice(0,17)+'...' : e[0]), entries.map(e => e[1]), `Top categories — ${col}`);
+    }
+  }
+
+  // chart helpers
+  function clearChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+  function drawBar(id, labels, data, title) {
+    clearChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: title, data, backgroundColor: 'rgba(79,70,229,0.85)', borderColor: 'rgba(79,70,229,1)', borderWidth: 1 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend: { display:false }, title:{ display:true, text:title } } }
+    });
+  }
+  function drawLine(id, labels, data, title) {
+    clearChart(id);
+    const ctx = document.getElementById(id).getContext('2d');
+    charts[id] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: title, data, fill:true, backgroundColor:'rgba(79,70,229,0.15)', borderColor:'rgba(79,70,229,1)', tension:0.3 }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false }, title:{ display:true, text:title } } }
+    });
+  }
+
+  // CSV download of current df
+  $('#downloadCSV').addEventListener('click', () => {
+    if (!df.length) return alert('No data to download');
+    const ws = XLSX.utils.json_to_sheet(df);
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, activeSheet || 'Sheet1');
+    XLSX.writeFile(wb, `${(activeSheet||'data')}_cleaned.csv`);
+  });
+
+  // Export PNGs
+  $('#exportPNG').addEventListener('click', () => {
+    Object.keys(charts).forEach((k, idx) => {
+      try {
+        const url = charts[k].toBase64Image();
+        const a = document.createElement('a'); a.href = url; a.download = `${activeSheet||'data'}_${k}.png`; document.body.appendChild(a); a.click(); a.remove();
+      } catch (err) { console.error('export PNG error', err); }
+    });
+  });
+
+  // helpers: loading / error
+  function showLoading(){ $('#loading').classList.remove('hidden'); }
+  function hideLoading(){ $('#loading').classList.add('hidden'); }
+  function showError(msg){ $('#error').textContent = msg; $('#error').classList.remove('hidden'); }
+  function hideError(){ $('#error').classList.add('hidden'); }
+
+  console.log('Client-side Excel Data Analyzer ready');
+</script>
+</body>
+</html>
