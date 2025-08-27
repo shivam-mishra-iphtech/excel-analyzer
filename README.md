@@ -1,6 +1,10 @@
-# 📊 Excel Data Analyzer
+# <div align="center">📊 Excel Data Analyzer</div>
 
+<div align="center">
 A powerful, client-side web application for analyzing Excel and CSV files with beautiful visualizations and advanced data exploration features—all without leaving your browser.
+</div>
+
+<div align="center">
 
 ![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?logo=javascript&logoColor=black)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
@@ -10,7 +14,11 @@ A powerful, client-side web application for analyzing Excel and CSV files with b
 ![Tabulator](https://img.shields.io/badge/Tabulator-1F2937?logo=tabulator&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?logo=tailwind-css&logoColor=white)
 
-## ✨ Features
+</div>
+
+## <div align="center">✨ Features</div>
+
+<div align="center">
 
 ### 🔒 Privacy & Security
 - **100% Client-Side Processing** - Your data never leaves your computer
@@ -34,7 +42,11 @@ A powerful, client-side web application for analyzing Excel and CSV files with b
 - **Data Export** - Save cleaned data as CSV files
 - **Report Generation** - Comprehensive analysis summaries
 
-## 🛠️ Technology Stack
+</div>
+
+## <div align="center">🛠️ Technology Stack</div>
+
+<div align="center">
 
 | Technology | Purpose |
 |------------|---------|
@@ -48,7 +60,11 @@ A powerful, client-side web application for analyzing Excel and CSV files with b
 | <img src="https://lucide.dev/logo.svg" width="20" height="20"> **Lucide Icons** | Beautiful iconography |
 | **Google Fonts (Inter)** | Modern typography |
 
-## 🚀 Quick Start
+</div>
+
+## <div align="center">🚀 Quick Start</div>
+
+<div align="center">
 
 ### Prerequisites
 - A modern web browser (Chrome, Firefox, Safari, Edge)
@@ -77,16 +93,21 @@ python -m http.server 8000
 4. **Interact** with charts and tables to dive deeper into your data
 5. **Export** results or visualizations as needed
 
-## 📸 Screenshots
+</div>
+
+## <div align="center">📸 Screenshots</div>
 
 <div align="center">
   <img src="https://via.placeholder.com/800x400/38B2AC/FFFFFF?text=Dashboard+View" alt="Dashboard Preview" width="400"/>
   <img src="https://via.placeholder.com/800x400/4F46E5/FFFFFF?text=Data+Visualization" alt="Chart Preview" width="400"/>
+  <br>
   <img src="https://via.placeholder.com/800x400/EC4899/FFFFFF?text=Interactive+Table" alt="Table Preview" width="400"/>
   <img src="https://via.placeholder.com/800x400/F59E0B/FFFFFF?text=Export+Options" alt="Export Preview" width="400"/>
 </div>
 
-## 🔧 Advanced Usage
+## <div align="center">🔧 Advanced Usage</div>
+
+<div align="center">
 
 ### Keyboard Shortcuts
 - `Ctrl/Cmd + F` - Focus on table filter
@@ -106,7 +127,11 @@ For files larger than 10MB, consider:
 - Sampling a subset of rows for initial analysis
 - Increasing browser memory allocation (advanced)
 
-## 🤝 Contributing
+</div>
+
+## <div align="center">🤝 Contributing</div>
+
+<div align="center">
 
 We welcome contributions! Please feel free to submit pull requests, report bugs, or suggest new features.
 
@@ -122,11 +147,19 @@ We welcome contributions! Please feel free to submit pull requests, report bugs,
 - Comment complex logic sections
 - Test across multiple browsers
 
-## 📄 License
+</div>
+
+## <div align="center">📄 License</div>
+
+<div align="center">
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
-## 🆘 Support
+</div>
+
+## <div align="center">🆘 Support</div>
+
+<div align="center">
 
 If you encounter any issues or have questions:
 
@@ -134,19 +167,29 @@ If you encounter any issues or have questions:
 2. Search existing [GitHub Issues](https://github.com/your-username/excel-data-analyzer/issues)
 3. Create a new issue with details about your problem
 
-## 🙏 Acknowledgments
+</div>
+
+## <div align="center">🙏 Acknowledgments</div>
+
+<div align="center">
 
 - [SheetJS](https://sheetjs.com/) team for excellent Excel parsing library
 - [Chart.js](https://www.chartjs.org/) contributors for powerful visualization tools
 - [Tabulator](http://tabulator.info/) team for the fantastic table library
 - [Tailwind CSS](https://tailwindcss.com/) for the utility-first CSS framework
 
-## 📊 Project Status
+</div>
+
+## <div align="center">📊 Project Status</div>
+
+<div align="center">
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/your-username/excel-data-analyzer)
 ![GitHub issues](https://img.shields.io/github/issues/your-username/excel-data-analyzer)
 ![GitHub pull requests](https://img.shields.io/github/issues-pr/your-username/excel-data-analyzer)
 ![GitHub](https://img.shields.io/github/license/your-username/excel-data-analyzer)
+
+</div>
 
 ---
 
